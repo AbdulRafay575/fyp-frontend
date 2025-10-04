@@ -14,6 +14,8 @@ import Login from "./pages/Login";
 import Register from "./pages/Register";
 import ForgotPassword from "./pages/ForgotPassword";
 import Profile from "./pages/Profile";
+import ResetPassword from "./pages/ResetPassword"; // Add this import
+
 
 const queryClient = new QueryClient();
 
@@ -31,6 +33,7 @@ const App = () => (
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/summaries" element={<Summaries />} />
             <Route path="/videos" element={<Videos />} />
+            <Route path="/reset-password" element={<ResetPassword />} /> {/* Add this route */}
             <Route path="/questions" element={<Questions />} />
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/profile" element={<Profile />} />

@@ -1,12 +1,12 @@
-
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { BookOpen, Mail, Lock, User, AlertCircle, Eye, EyeOff } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { apiService } from "@/services/api";
 
 const Register = () => {
   const [email, setEmail] = useState("");
@@ -19,13 +19,13 @@ const Register = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
     setIsLoading(true);
 
-    // Validation
     if (!email || !password || !confirmPassword || !name) {
       setError("All fields are required");
       setIsLoading(false);
@@ -45,18 +45,17 @@ const Register = () => {
     }
 
     try {
-      // Simulate registration
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const response = await apiService.signup(email, password, name);
       
-      // Success
       toast({
         title: "Account created successfully",
-        description: "Welcome to StudyGenius!",
+        description: "Please check your email for verification!",
       });
       
-      // Redirect would happen here in a real app
+      // Redirect to login
+      navigate("/login");
     } catch (err) {
-      setError("Failed to create account. Please try again.");
+      setError(err.message || "Failed to create account. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -103,6 +102,7 @@ const Register = () => {
                   className="pl-10"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
+                  required
                 />
               </div>
             </div>
@@ -120,6 +120,7 @@ const Register = () => {
                   className="pl-10"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
+                  required
                 />
               </div>
             </div>
@@ -136,6 +137,7 @@ const Register = () => {
                   className="pl-10 pr-10"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
+                  required
                 />
                 <button
                   type="button"
@@ -163,6 +165,7 @@ const Register = () => {
                   className="pl-10 pr-10"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
+                  required
                 />
                 <button
                   type="button"
@@ -185,16 +188,10 @@ const Register = () => {
                 className="h-4 w-4 rounded border-primary text-primary focus:ring-primary"
                 checked={agreeToTerms}
                 onChange={(e) => setAgreeToTerms(e.target.checked)}
+                required
               />
               <label htmlFor="terms" className="text-sm text-muted-foreground">
-                I agree to the{" "}
-                <Link to="/terms" className="text-primary hover:underline">
-                  Terms of Service
-                </Link>{" "}
-                and{" "}
-                <Link to="/privacy" className="text-primary hover:underline">
-                  Privacy Policy
-                </Link>
+                I agree to the terms and conditions
               </label>
             </div>
             

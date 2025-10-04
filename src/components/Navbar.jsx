@@ -52,7 +52,7 @@ const Navbar = () => {
               className={`font-medium transition-colors flex items-center gap-1.5 px-3 py-1.5 rounded-md ${isActive('/questions') ? 'text-primary bg-primary/10' : 'text-foreground/80 hover:text-primary hover:bg-muted'}`}
             >
               <HelpCircle className="h-4 w-4" />
-              <span>Exam Prep</span>
+              <span>Exam Preparation</span>
             </Link>
             <div className="flex items-center gap-3 ml-4">
               <ThemeToggle />
@@ -125,7 +125,7 @@ const Navbar = () => {
               onClick={() => setIsMenuOpen(false)}
             >
               <HelpCircle className="h-4 w-4" />
-              <span>Exam Prep</span>
+              <span>Exam Preparation</span>
             </Link>
             <Link 
               to="/login"

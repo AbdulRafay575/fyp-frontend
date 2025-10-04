@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { BookOpen, Mail, AlertCircle, ArrowLeft } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { apiService } from "@/services/api";
 
 const ForgotPassword = () => {
   const [email, setEmail] = useState("");
@@ -19,7 +20,6 @@ const ForgotPassword = () => {
     setError("");
     setIsLoading(true);
 
-    // Validation
     if (!email) {
       setError("Email is required");
       setIsLoading(false);
@@ -27,17 +27,15 @@ const ForgotPassword = () => {
     }
 
     try {
-      // Simulate sending password reset email
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await apiService.forgotPassword(email);
       
-      // Success
       setIsSubmitted(true);
       toast({
         title: "Reset link sent",
         description: "Check your email for the password reset link",
       });
     } catch (err) {
-      setError("Failed to send reset link. Please try again.");
+      setError(err.message || "Failed to send reset link. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -85,6 +83,7 @@ const ForgotPassword = () => {
                     className="pl-10"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
+                    required
                   />
                 </div>
               </div>

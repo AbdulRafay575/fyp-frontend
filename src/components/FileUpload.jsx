@@ -2,9 +2,9 @@ import { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/use-toast";
-import { Upload, X, FileText, File } from 'lucide-react';
+import { Upload, X, FileText, File, Image, Loader } from 'lucide-react';
 
-const FileUpload = ({ onFileUpload }) => {
+const FileUpload = ({ onFileUpload, onFileProcessed }) => {
   const [file, setFile] = useState(null);
   const [isDragging, setIsDragging] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -36,21 +36,29 @@ const FileUpload = ({ onFileUpload }) => {
   };
 
   const validateAndSetFile = (selectedFile) => {
-    const validTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+    // Only allow PDF and JPEG
+    const validTypes = [
+      'application/pdf', 
+      'image/jpeg', 
+      'image/jpg'
+    ];
     
-    if (!validTypes.includes(selectedFile.type)) {
+    const validExtensions = ['.pdf', '.jpg', '.jpeg'];
+    const fileExtension = selectedFile.name.toLowerCase().split('.').pop();
+    
+    if (!validTypes.includes(selectedFile.type) && !validExtensions.includes('.' + fileExtension)) {
       toast({
         title: "Invalid file type",
-        description: "Please upload a PDF or Word document",
+        description: "Please upload only PDF or JPEG files",
         variant: "destructive"
       });
       return;
     }
     
-    if (selectedFile.size > 10 * 1024 * 1024) { // 10MB limit
+    if (selectedFile.size > 50 * 1024 * 1024) { // 50MB limit for large PDFs
       toast({
         title: "File too large",
-        description: "Please upload a file smaller than 10MB",
+        description: "Please upload a file smaller than 50MB",
         variant: "destructive"
       });
       return;
@@ -68,13 +76,9 @@ const FileUpload = ({ onFileUpload }) => {
     
     setIsLoading(true);
     
-    // Simulate file upload - in real app, you would connect to backend here
     try {
-      // Simulating API call delay
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
       if (onFileUpload) {
-        onFileUpload(file);
+        await onFileUpload(file);
       }
       
       toast({
@@ -82,13 +86,11 @@ const FileUpload = ({ onFileUpload }) => {
         description: `${file.name} has been uploaded for processing.`,
       });
       
-      // For demo purposes - in real app you might not clear this if showing a list
-      setFile(null);
     } catch (error) {
       console.error("Error uploading file:", error);
       toast({
         title: "Upload failed",
-        description: "There was a problem uploading your file. Please try again.",
+        description: error.message || "There was a problem uploading your file. Please try again.",
         variant: "destructive"
       });
     } finally {
@@ -102,7 +104,7 @@ const FileUpload = ({ onFileUpload }) => {
     if (file.type === 'application/pdf') {
       return <FileText className="h-10 w-10 text-red-500" />;
     } else {
-      return <File className="h-10 w-10 text-blue-500" />;
+      return <Image className="h-10 w-10 text-blue-500" />;
     }
   };
 
@@ -110,8 +112,8 @@ const FileUpload = ({ onFileUpload }) => {
     <div className="w-full">
       {!file ? (
         <div
-          className={`border-2 border-dashed rounded-lg p-8 text-center ${
-            isDragging ? 'border-primary bg-primary/5' : 'border-gray-300'
+          className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
+            isDragging ? 'border-primary bg-primary/5' : 'border-gray-300 hover:border-primary/50'
           }`}
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
@@ -120,13 +122,15 @@ const FileUpload = ({ onFileUpload }) => {
           <Upload className="mx-auto h-12 w-12 text-gray-400 mb-4" />
           <h3 className="text-lg font-medium mb-2">Upload your study material</h3>
           <p className="text-sm text-gray-500 mb-4">
-            Drag and drop your PDF or Word document, or click to browse
+            Drag and drop your PDF or JPEG file, or click to browse
+            <br />
+            <span className="text-xs">Supported: PDF, JPEG (Max: 50MB)</span>
           </p>
           <Input
             type="file"
             className="hidden"
             id="file-upload"
-            accept=".pdf,.doc,.docx"
+            accept=".pdf,.jpg,.jpeg"
             onChange={handleFileChange}
           />
           <Button 
@@ -137,14 +141,14 @@ const FileUpload = ({ onFileUpload }) => {
           </Button>
         </div>
       ) : (
-        <div className="border rounded-lg p-4">
+        <div className="border rounded-lg p-4 bg-background/50">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
               {getFileIcon()}
               <div>
                 <p className="font-medium truncate max-w-[200px]">{file.name}</p>
                 <p className="text-sm text-gray-500">
-                  {(file.size / 1024 / 1024).toFixed(2)} MB
+                  {(file.size / 1024 / 1024).toFixed(2)} MB • {file.type.split('/')[1].toUpperCase()}
                 </p>
               </div>
             </div>
@@ -165,7 +169,14 @@ const FileUpload = ({ onFileUpload }) => {
               onClick={uploadFile}
               disabled={isLoading}
             >
-              {isLoading ? "Processing..." : "Process Document"}
+              {isLoading ? (
+                <>
+                  <Loader className="h-4 w-4 mr-2 animate-spin" />
+                  Processing...
+                </>
+              ) : (
+                "Process Document"
+              )}
             </Button>
           </div>
         </div>

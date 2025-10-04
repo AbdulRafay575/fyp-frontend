@@ -1,5 +1,5 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Navbar from '@/components/Navbar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -8,79 +8,286 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Label } from "@/components/ui/label";
 import SummaryViewer from '@/components/SummaryViewer';
 import { useToast } from "@/components/ui/use-toast";
-import { Camera, Settings, History, User, Key, AtSign } from 'lucide-react';
+import { Camera, Settings, History, User, Key, AtSign, Loader } from 'lucide-react';
+import { apiService } from '@/services/api';
 
 const Profile = () => {
   const [activeTab, setActiveTab] = useState("settings");
+  const [isLoading, setIsLoading] = useState(true);
+  const [isUpdating, setIsUpdating] = useState(false);
   const { toast } = useToast();
+  const navigate = useNavigate();
 
-  // Mock user data
+  // User data state
   const [userData, setUserData] = useState({
-    name: "John Doe",
-    email: "john.doe@example.com",
+    name: "",
+    email: "",
     profileImage: null
   });
 
-  // Mock summaries for history
-  const [summaries, setSummaries] = useState([
-    {
-      title: "Introduction to Organic Chemistry",
-      summary: "This document covers the fundamentals of organic chemistry, including basic principles of carbon compounds, functional groups, and chemical bonding in organic molecules.",
-      keyPoints: [
-        "Carbon forms four bonds in organic compounds",
-        "Functional groups determine chemical properties",
-        "IUPAC naming conventions follow specific rules",
-        "Stereochemistry addresses 3D arrangement of atoms",
-        "Reaction mechanisms show electron movement"
-      ]
-    },
-    {
-      title: "Quantum Physics Lecture 3",
-      summary: "An exploration of quantum mechanical principles including wave-particle duality, the uncertainty principle, and quantum states.",
-      keyPoints: [
-        "Wave-particle duality is fundamental to quantum mechanics",
-        "Heisenberg's uncertainty principle sets limits on measurement",
-        "Quantum states are described by wavefunctions",
-        "Schrödinger's equation governs quantum evolution",
-        "Quantum entanglement allows for non-local correlations"
-      ]
-    }
-  ]);
+  // Form states
+  const [profileForm, setProfileForm] = useState({
+    name: "",
+    email: ""
+  });
 
-  const handleSaveProfile = (e) => {
+  const [passwordForm, setPasswordForm] = useState({
+    currentPassword: "",
+    newPassword: "",
+    confirmPassword: ""
+  });
+
+  // Summaries state
+  const [summaries, setSummaries] = useState([]);
+  const [summariesLoading, setSummariesLoading] = useState(false);
+
+  // Load user profile on component mount
+  useEffect(() => {
+    const loadUserProfile = async () => {
+      try {
+        setIsLoading(true);
+        const response = await apiService.getProfile();
+        
+        if (response.success) {
+          const user = response.user;
+          const profilePicture = user.profile_picture || user.user_metadata?.profile_picture;
+          
+          setUserData({
+            name: user.full_name || user.user_metadata?.full_name || user.email.split('@')[0],
+            email: user.email,
+            profileImage: profilePicture
+          });
+          
+          setProfileForm({
+            name: user.full_name || user.user_metadata?.full_name || user.email.split('@')[0],
+            email: user.email
+          });
+        }
+      } catch (error) {
+        console.error('Failed to load profile:', error);
+        toast({
+          title: "Error loading profile",
+          description: "Please try again later.",
+          variant: "destructive"
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadUserProfile();
+  }, [toast]);
+
+  // Load summaries when history tab is active
+  // In the useEffect for loading summaries, replace with this:
+useEffect(() => {
+    const loadSummaries = async () => {
+        if (activeTab === "history") {
+            try {
+                setSummariesLoading(true);
+                const response = await apiService.getUserSummaries();
+                
+                if (response.success) {
+                    // Check if there's a message about missing table
+                    if (response.message && response.message.includes("table")) {
+                        // Table doesn't exist yet - show empty state
+                        setSummaries([]);
+                        console.log("Summaries table not found:", response.message);
+                    } else {
+                        // Transform the API response to match your component's expected format
+                        const formattedSummaries = response.summaries.map(summary => ({
+                            id: summary.id,
+                            title: summary.title,
+                            content: summary.content,
+                            source_type: summary.source_type,
+                            created_at: summary.created_at,
+                            key_points: summary.source_text ? 
+                                summary.source_text.split('\n').filter(point => point.trim()) : 
+                                []
+                        }));
+                        
+                        setSummaries(formattedSummaries);
+                    }
+                }
+            } catch (error) {
+                console.error('Failed to load summaries:', error);
+                // Set empty summaries on error
+                setSummaries([]);
+            } finally {
+                setSummariesLoading(false);
+            }
+        }
+    };
+
+    loadSummaries();
+}, [activeTab]);
+
+  const handleSaveProfile = async (e) => {
     e.preventDefault();
-    toast({
-      title: "Profile updated",
-      description: "Your profile information has been updated successfully.",
-    });
-  };
+    setIsUpdating(true);
 
-  const handlePasswordChange = (e) => {
-    e.preventDefault();
-    toast({
-      title: "Password updated",
-      description: "Your password has been changed successfully.",
-    });
-  };
-
-  const handleImageUpload = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
+    try {
+      const response = await apiService.updateProfile(profileForm.name);
+      
+      if (response.success) {
         setUserData({
           ...userData,
-          profileImage: reader.result
+          name: profileForm.name
         });
         
         toast({
-          title: "Profile picture updated",
-          description: "Your profile picture has been updated successfully.",
+          title: "Profile updated",
+          description: "Your profile information has been updated successfully.",
         });
-      };
-      reader.readAsDataURL(file);
+        
+        // Reload profile to get updated data
+        const profileResponse = await apiService.getProfile();
+        if (profileResponse.success) {
+          const user = profileResponse.user;
+          setUserData(prev => ({
+            ...prev,
+            name: user.full_name || user.user_metadata?.full_name || user.email.split('@')[0]
+          }));
+        }
+      }
+    } catch (error) {
+      console.error('Failed to update profile:', error);
+      toast({
+        title: "Error updating profile",
+        description: error.message || "Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsUpdating(false);
     }
   };
+
+  const handlePasswordChange = async (e) => {
+    e.preventDefault();
+    
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      toast({
+        title: "Passwords don't match",
+        description: "Please make sure your new passwords match.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (passwordForm.newPassword.length < 6) {
+      toast({
+        title: "Password too short",
+        description: "Password must be at least 6 characters long.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setIsUpdating(true);
+
+    try {
+      const response = await apiService.changePassword(
+        passwordForm.currentPassword, 
+        passwordForm.newPassword
+      );
+      
+      if (response.success) {
+        setPasswordForm({
+          currentPassword: "",
+          newPassword: "",
+          confirmPassword: ""
+        });
+        
+        toast({
+          title: "Password updated",
+          description: "Your password has been changed successfully.",
+        });
+      }
+    } catch (error) {
+      console.error('Failed to change password:', error);
+      toast({
+        title: "Error changing password",
+        description: error.message || "Please check your current password and try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const handleImageUpload = async (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      try {
+        setIsUpdating(true);
+        
+        // Upload to backend
+        const response = await apiService.updateProfilePicture(file);
+        
+        if (response.success) {
+          // Create local URL for immediate display
+          const localUrl = URL.createObjectURL(file);
+          
+          setUserData({
+            ...userData,
+            profileImage: localUrl
+          });
+          
+          toast({
+            title: "Profile picture updated",
+            description: "Your profile picture has been updated successfully.",
+          });
+          
+          // Reload profile to get the actual URL from backend
+          const profileResponse = await apiService.getProfile();
+          if (profileResponse.success) {
+            const user = profileResponse.user;
+            const profilePicture = user.profile_picture || user.user_metadata?.profile_picture;
+            if (profilePicture) {
+              setUserData(prev => ({
+                ...prev,
+                profileImage: profilePicture
+              }));
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Failed to upload profile picture:', error);
+        toast({
+          title: "Error uploading profile picture",
+          description: error.message || "Please try again.",
+          variant: "destructive"
+        });
+      } finally {
+        setIsUpdating(false);
+      }
+    }
+  };
+
+  const handleProfileFormChange = (field, value) => {
+    setProfileForm(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  const handlePasswordFormChange = (field, value) => {
+    setPasswordForm(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background transition-colors duration-300">
+        <Navbar />
+        <div className="app-container py-8 flex justify-center items-center min-h-[60vh]">
+          <Loader className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background transition-colors duration-300">
@@ -120,6 +327,7 @@ const Profile = () => {
                         accept="image/*" 
                         className="hidden" 
                         onChange={handleImageUpload}
+                        disabled={isUpdating}
                       />
                     </label>
                   </div>
@@ -139,8 +347,9 @@ const Profile = () => {
                       <Label htmlFor="name">Full Name</Label>
                       <Input 
                         id="name" 
-                        value={userData.name} 
-                        onChange={(e) => setUserData({...userData, name: e.target.value})}
+                        value={profileForm.name} 
+                        onChange={(e) => handleProfileFormChange('name', e.target.value)}
+                        disabled={isUpdating}
                       />
                     </div>
                     <div className="space-y-2">
@@ -148,11 +357,14 @@ const Profile = () => {
                       <Input 
                         id="email" 
                         type="email" 
-                        value={userData.email} 
-                        onChange={(e) => setUserData({...userData, email: e.target.value})}
+                        value={profileForm.email} 
+                        disabled
+                        className="bg-muted"
                       />
                     </div>
-                    <Button type="submit">Save Changes</Button>
+                    <Button type="submit" disabled={isUpdating}>
+                      {isUpdating ? "Saving..." : "Save Changes"}
+                    </Button>
                   </form>
                 </div>
                 
@@ -164,17 +376,37 @@ const Profile = () => {
                   <form onSubmit={handlePasswordChange} className="space-y-4">
                     <div className="space-y-2">
                       <Label htmlFor="current-password">Current Password</Label>
-                      <Input id="current-password" type="password" />
+                      <Input 
+                        id="current-password" 
+                        type="password" 
+                        value={passwordForm.currentPassword}
+                        onChange={(e) => handlePasswordFormChange('currentPassword', e.target.value)}
+                        disabled={isUpdating}
+                      />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="new-password">New Password</Label>
-                      <Input id="new-password" type="password" />
+                      <Input 
+                        id="new-password" 
+                        type="password" 
+                        value={passwordForm.newPassword}
+                        onChange={(e) => handlePasswordFormChange('newPassword', e.target.value)}
+                        disabled={isUpdating}
+                      />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="confirm-password">Confirm New Password</Label>
-                      <Input id="confirm-password" type="password" />
+                      <Input 
+                        id="confirm-password" 
+                        type="password" 
+                        value={passwordForm.confirmPassword}
+                        onChange={(e) => handlePasswordFormChange('confirmPassword', e.target.value)}
+                        disabled={isUpdating}
+                      />
                     </div>
-                    <Button type="submit" variant="outline">Update Password</Button>
+                    <Button type="submit" variant="outline" disabled={isUpdating}>
+                      {isUpdating ? "Updating..." : "Update Password"}
+                    </Button>
                   </form>
                 </div>
               </div>
@@ -188,11 +420,22 @@ const Profile = () => {
                 My Summaries
               </h3>
               
-              <div className="space-y-6">
-                {summaries.map((summary, index) => (
-                  <SummaryViewer key={index} summary={summary} />
-                ))}
-              </div>
+              {summariesLoading ? (
+                <div className="flex justify-center items-center py-8">
+                  <Loader className="h-6 w-6 animate-spin text-primary" />
+                </div>
+              ) : summaries.length > 0 ? (
+                <div className="space-y-6">
+                  {summaries.map((summary, index) => (
+                    <SummaryViewer key={summary.id || index} summary={summary} />
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  <p>No summaries found.</p>
+                  <p className="text-sm">Your generated summaries will appear here.</p>
+                </div>
+              )}
             </div>
           </TabsContent>
         </Tabs>
