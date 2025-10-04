@@ -182,6 +182,23 @@ class ApiService {
         });
     }
 
+
+    // Add these methods to your ApiService class
+
+// Dubbing endpoints// Dubbing endpoints - FIXED
+async createDubbedVideo(videoUrl, targetLanguage = "Urdu") {
+    return this.request('/dubbing/create', {
+        method: 'POST',
+        body: JSON.stringify({ 
+            video_url: videoUrl, 
+            target_language: targetLanguage 
+        }),
+    });
+}
+
+async getDubbingStatus(jobId) {
+    return this.request(`/dubbing/status/${jobId}`);
+}
     // Summaries endpoints
     async getUserSummaries() {
         return this.request('/summaries');
