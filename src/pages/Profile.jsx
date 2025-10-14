@@ -6,9 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Label } from "@/components/ui/label";
-import SummaryViewer from '@/components/SummaryViewer';
+import UserHistory from '@/components/UserHistory';
 import { useToast } from "@/components/ui/use-toast";
-import { Camera, Settings, History, User, Key, AtSign, Loader } from 'lucide-react';
+import { Camera, Settings, History, User, Key, AtSign, Loader, ExternalLink } from 'lucide-react';
 import { apiService } from '@/services/api';
 
 const Profile = () => {
@@ -78,49 +78,52 @@ const Profile = () => {
     loadUserProfile();
   }, [toast]);
 
-  // Load summaries when history tab is active
-  // In the useEffect for loading summaries, replace with this:
-useEffect(() => {
+  // Load summaries when history tab is active - Only show recent 5
+  useEffect(() => {
     const loadSummaries = async () => {
-        if (activeTab === "history") {
-            try {
-                setSummariesLoading(true);
-                const response = await apiService.getUserSummaries();
-                
-                if (response.success) {
-                    // Check if there's a message about missing table
-                    if (response.message && response.message.includes("table")) {
-                        // Table doesn't exist yet - show empty state
-                        setSummaries([]);
-                        console.log("Summaries table not found:", response.message);
-                    } else {
-                        // Transform the API response to match your component's expected format
-                        const formattedSummaries = response.summaries.map(summary => ({
-                            id: summary.id,
-                            title: summary.title,
-                            content: summary.content,
-                            source_type: summary.source_type,
-                            created_at: summary.created_at,
-                            key_points: summary.source_text ? 
-                                summary.source_text.split('\n').filter(point => point.trim()) : 
-                                []
-                        }));
-                        
-                        setSummaries(formattedSummaries);
-                    }
-                }
-            } catch (error) {
-                console.error('Failed to load summaries:', error);
-                // Set empty summaries on error
-                setSummaries([]);
-            } finally {
-                setSummariesLoading(false);
+      if (activeTab === "history") {
+        try {
+          setSummariesLoading(true);
+          const response = await apiService.getUserSummaries();
+          
+          if (response.success) {
+            // Check if there's a message about missing table
+            if (response.message && response.message.includes("table")) {
+              // Table doesn't exist yet - show empty state
+              setSummaries([]);
+              console.log("Summaries table not found:", response.message);
+            } else {
+              // Transform the API response to match your component's expected format
+              const formattedSummaries = response.summaries
+                .map(summary => ({
+                  id: summary.id,
+                  title: summary.title,
+                  content: summary.content,
+                  source_type: summary.source_type,
+                  created_at: summary.created_at,
+                  key_points: summary.source_text ? 
+                    summary.source_text.split('\n').filter(point => point.trim()) : 
+                    []
+                }))
+                // Sort by creation date (newest first) and take only 5
+                .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+                .slice(0, 5);
+              
+              setSummaries(formattedSummaries);
             }
+          }
+        } catch (error) {
+          console.error('Failed to load summaries:', error);
+          // Set empty summaries on error
+          setSummaries([]);
+        } finally {
+          setSummariesLoading(false);
         }
+      }
     };
 
     loadSummaries();
-}, [activeTab]);
+  }, [activeTab]);
 
   const handleSaveProfile = async (e) => {
     e.preventDefault();
@@ -278,6 +281,10 @@ useEffect(() => {
     }));
   };
 
+  const handleViewAllSummaries = () => {
+    navigate('/summaries');
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-background transition-colors duration-300">
@@ -309,18 +316,34 @@ useEffect(() => {
           </TabsList>
           
           <TabsContent value="settings" className="space-y-6 animate-fade-in">
-            <div className="grid md:grid-cols-3 gap-6">
-              <div className="glass-card p-6 rounded-xl col-span-1">
-                <div className="flex flex-col items-center">
-                  <div className="relative mb-4">
-                    <Avatar className="h-28 w-28 border-4 border-primary/20">
-                      <AvatarImage src={userData.profileImage} />
-                      <AvatarFallback className="text-2xl bg-primary/10 text-primary">
-                        {userData.name.split(' ').map(n => n[0]).join('')}
-                      </AvatarFallback>
-                    </Avatar>
-                    <label htmlFor="profile-image" className="absolute bottom-0 right-0 bg-primary text-primary-foreground p-2 rounded-full cursor-pointer hover:bg-primary/90 transition-colors">
-                      <Camera className="h-4 w-4" />
+            <div className="grid md:grid-cols-3 gap-8">
+              {/* Profile Image Section - Improved Design */}
+              <div className="glass-card p-8 rounded-2xl col-span-1">
+                <div className="flex flex-col items-center space-y-6">
+                  <div className="relative group">
+                    {/* Square/Rounded Avatar with better image handling */}
+                    <div className="w-40 h-40 rounded-2xl border-4 border-primary/20 overflow-hidden bg-muted/50 shadow-lg transition-all duration-300 group-hover:shadow-xl">
+                      {userData.profileImage ? (
+                        <img 
+                          src={userData.profileImage} 
+                          alt={userData.name}
+                          className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary/10 to-primary/5">
+                          <span className="text-4xl font-bold text-primary">
+                            {userData.name.split(' ').map(n => n[0]).join('')}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                    
+                    {/* Camera Button */}
+                    <label 
+                      htmlFor="profile-image" 
+                      className="absolute -bottom-2 -right-2 bg-primary text-primary-foreground p-3 rounded-full cursor-pointer hover:bg-primary/90 transition-all duration-300 shadow-lg hover:shadow-xl border-2 border-background"
+                    >
+                      <Camera className="h-5 w-5" />
                       <input 
                         id="profile-image" 
                         type="file" 
@@ -331,109 +354,180 @@ useEffect(() => {
                       />
                     </label>
                   </div>
-                  <h2 className="text-xl font-semibold">{userData.name}</h2>
-                  <p className="text-muted-foreground">{userData.email}</p>
+                  
+                  <div className="text-center space-y-2">
+                    <h2 className="text-2xl font-bold text-foreground">{userData.name}</h2>
+                    <p className="text-muted-foreground text-sm">{userData.email}</p>
+                  </div>
                 </div>
               </div>
               
-              <div className="glass-card p-6 rounded-xl col-span-2 grid gap-6">
-                <div>
-                  <h3 className="text-lg font-semibold mb-4 flex items-center">
-                    <User className="mr-2 h-5 w-5 text-primary" />
+              {/* Profile Forms Section */}
+              <div className="glass-card p-8 rounded-2xl col-span-2 space-y-8">
+                {/* Personal Information */}
+                <div className="space-y-6">
+                  <h3 className="text-xl font-semibold flex items-center">
+                    <User className="mr-3 h-6 w-6 text-primary" />
                     Personal Information
                   </h3>
-                  <form onSubmit={handleSaveProfile} className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="name">Full Name</Label>
-                      <Input 
-                        id="name" 
-                        value={profileForm.name} 
-                        onChange={(e) => handleProfileFormChange('name', e.target.value)}
-                        disabled={isUpdating}
-                      />
+                  <form onSubmit={handleSaveProfile} className="space-y-6">
+                    <div className="grid gap-4">
+                      <div className="space-y-3">
+                        <Label htmlFor="name" className="text-base font-medium">Full Name</Label>
+                        <Input 
+                          id="name" 
+                          value={profileForm.name} 
+                          onChange={(e) => handleProfileFormChange('name', e.target.value)}
+                          disabled={isUpdating}
+                          className="h-12 text-base"
+                        />
+                      </div>
+                      <div className="space-y-3">
+                        <Label htmlFor="email" className="text-base font-medium">Email Address</Label>
+                        <Input 
+                          id="email" 
+                          type="email" 
+                          value={profileForm.email} 
+                          disabled
+                          className="h-12 text-base bg-muted/50"
+                        />
+                      </div>
                     </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="email">Email Address</Label>
-                      <Input 
-                        id="email" 
-                        type="email" 
-                        value={profileForm.email} 
-                        disabled
-                        className="bg-muted"
-                      />
-                    </div>
-                    <Button type="submit" disabled={isUpdating}>
-                      {isUpdating ? "Saving..." : "Save Changes"}
+                    <Button 
+                      type="submit" 
+                      disabled={isUpdating}
+                      className="h-11 px-6 text-base"
+                    >
+                      {isUpdating ? (
+                        <>
+                          <Loader className="h-4 w-4 animate-spin mr-2" />
+                          Saving...
+                        </>
+                      ) : (
+                        "Save Changes"
+                      )}
                     </Button>
                   </form>
                 </div>
                 
-                <div>
-                  <h3 className="text-lg font-semibold mb-4 flex items-center">
-                    <Key className="mr-2 h-5 w-5 text-primary" />
+                {/* Change Password */}
+                {/* <div className="space-y-6 pt-6 border-t border-border">
+                  <h3 className="text-xl font-semibold flex items-center">
+                    <Key className="mr-3 h-6 w-6 text-primary" />
                     Change Password
                   </h3>
-                  <form onSubmit={handlePasswordChange} className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="current-password">Current Password</Label>
-                      <Input 
-                        id="current-password" 
-                        type="password" 
-                        value={passwordForm.currentPassword}
-                        onChange={(e) => handlePasswordFormChange('currentPassword', e.target.value)}
-                        disabled={isUpdating}
-                      />
+                  <form onSubmit={handlePasswordChange} className="space-y-6">
+                    <div className="grid gap-4">
+                      <div className="space-y-3">
+                        <Label htmlFor="current-password" className="text-base font-medium">Current Password</Label>
+                        <Input 
+                          id="current-password" 
+                          type="password" 
+                          value={passwordForm.currentPassword}
+                          onChange={(e) => handlePasswordFormChange('currentPassword', e.target.value)}
+                          disabled={isUpdating}
+                          className="h-12 text-base"
+                        />
+                      </div>
+                      <div className="space-y-3">
+                        <Label htmlFor="new-password" className="text-base font-medium">New Password</Label>
+                        <Input 
+                          id="new-password" 
+                          type="password" 
+                          value={passwordForm.newPassword}
+                          onChange={(e) => handlePasswordFormChange('newPassword', e.target.value)}
+                          disabled={isUpdating}
+                          className="h-12 text-base"
+                        />
+                      </div>
+                      <div className="space-y-3">
+                        <Label htmlFor="confirm-password" className="text-base font-medium">Confirm New Password</Label>
+                        <Input 
+                          id="confirm-password" 
+                          type="password" 
+                          value={passwordForm.confirmPassword}
+                          onChange={(e) => handlePasswordFormChange('confirmPassword', e.target.value)}
+                          disabled={isUpdating}
+                          className="h-12 text-base"
+                        />
+                      </div>
                     </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="new-password">New Password</Label>
-                      <Input 
-                        id="new-password" 
-                        type="password" 
-                        value={passwordForm.newPassword}
-                        onChange={(e) => handlePasswordFormChange('newPassword', e.target.value)}
-                        disabled={isUpdating}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="confirm-password">Confirm New Password</Label>
-                      <Input 
-                        id="confirm-password" 
-                        type="password" 
-                        value={passwordForm.confirmPassword}
-                        onChange={(e) => handlePasswordFormChange('confirmPassword', e.target.value)}
-                        disabled={isUpdating}
-                      />
-                    </div>
-                    <Button type="submit" variant="outline" disabled={isUpdating}>
-                      {isUpdating ? "Updating..." : "Update Password"}
+                    <Button 
+                      type="submit" 
+                      variant="outline" 
+                      disabled={isUpdating}
+                      className="h-11 px-6 text-base"
+                    >
+                      {isUpdating ? (
+                        <>
+                          <Loader className="h-4 w-4 animate-spin mr-2" />
+                          Updating...
+                        </>
+                      ) : (
+                        "Update Password"
+                      )}
                     </Button>
                   </form>
-                </div>
+                </div> */}
               </div>
             </div>
           </TabsContent>
           
           <TabsContent value="history" className="animate-fade-in">
-            <div className="glass-card p-6 rounded-xl">
-              <h3 className="text-xl font-semibold mb-4 flex items-center">
-                <AtSign className="mr-2 h-5 w-5 text-primary" />
-                My Summaries
-              </h3>
+            <div className="glass-card p-8 rounded-2xl">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-xl font-semibold flex items-center">
+                  <AtSign className="mr-3 h-6 w-6 text-primary" />
+                  Recent Summaries
+                </h3>
+                <span className="text-sm text-muted-foreground">
+                  Showing {summaries.length} of recent summaries
+                </span>
+              </div>
               
               {summariesLoading ? (
-                <div className="flex justify-center items-center py-8">
-                  <Loader className="h-6 w-6 animate-spin text-primary" />
+                <div className="flex justify-center items-center py-12">
+                  <Loader className="h-8 w-8 animate-spin text-primary" />
                 </div>
               ) : summaries.length > 0 ? (
                 <div className="space-y-6">
-                  {summaries.map((summary, index) => (
-                    <SummaryViewer key={summary.id || index} summary={summary} />
-                  ))}
+{summaries.map((summary, index) => (
+  <UserHistory 
+    key={summary.id || index} 
+    summary={summary} 
+    index={index}
+    onUpdate={(updatedSummary) => {
+      // Update the summary in the state to reflect changes immediately
+      const updatedSummaries = [...summaries];
+      updatedSummaries[index] = updatedSummary;
+      setSummaries(updatedSummaries);
+    }} 
+  />
+))}
+                  
+                  {/* View All Button */}
+                  <div className="flex justify-center pt-4">
+                    <Button 
+                      onClick={handleViewAllSummaries}
+                      variant="outline"
+                      className="flex items-center gap-2"
+                    >
+                      View All Summaries
+                      <ExternalLink className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
               ) : (
-                <div className="text-center py-8 text-muted-foreground">
-                  <p>No summaries found.</p>
+                <div className="text-center py-12 text-muted-foreground space-y-3">
+                  <p className="text-lg">No summaries found.</p>
                   <p className="text-sm">Your generated summaries will appear here.</p>
+                  <Button 
+                    onClick={() => navigate('/dashboard')}
+                    variant="outline"
+                    className="mt-4"
+                  >
+                    Create Your First Summary
+                  </Button>
                 </div>
               )}
             </div>

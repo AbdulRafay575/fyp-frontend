@@ -118,6 +118,46 @@ class ApiService {
             body: formData,
         });
     }
+// Forgot password (send reset email)
+    async forgotPassword(email) {
+        return this.request('/auth/forgot-password', {
+            method: 'POST',
+            body: JSON.stringify({ email }),
+            skipAuth: true,
+        });
+    }
+
+    // Verify reset token validity
+    async verifyResetToken(token) {
+        return this.request(`/auth/verify-reset-token?token=${encodeURIComponent(token)}`, {
+            method: 'GET',
+            skipAuth: true,
+        });
+    }
+
+    // NEW: Exchange code for session (for email verification)
+    async exchangeCode(authCode) {
+        return this.request('/auth/exchange-code', {
+            method: 'POST',
+            body: JSON.stringify({ auth_code: authCode }),
+            skipAuth: true,
+        });
+    }
+
+    // Reset password - requires authentication
+   async resetPassword(token, newPassword) {
+    return this.request('/auth/reset-password', {
+        method: 'POST',
+        body: JSON.stringify({
+            token,
+            new_password: newPassword,
+        }),
+        skipAuth: true,
+    });
+}
+
+
+
 
     // Profile endpoints
     async updateProfilePicture(file) {
@@ -216,11 +256,11 @@ async getDubbingStatus(jobId) {
     }
 
     async updateSummary(summaryId, updateData) {
-        return this.request(`/summaries/${summaryId}`, {
-            method: 'PUT',
-            body: JSON.stringify(updateData),
-        });
-    }
+    return this.request(`/summaries/${summaryId}`, {
+        method: 'PUT',
+        body: JSON.stringify(updateData),
+    });
+}
 
     async deleteSummary(summaryId) {
         return this.request(`/summaries/${summaryId}`, {
